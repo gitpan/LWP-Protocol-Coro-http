@@ -4,7 +4,7 @@
       "Eric Brine <ikegami@adaelis.com>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.38, CPAN::Meta::Converter version 2.110440",
+   "generated_by" : "Module::Build version 0.38, CPAN::Meta::Converter version 2.112150",
    "license" : [
       "unrestricted"
    ],
@@ -50,14 +50,17 @@
    "provides" : {
       "LWP::Protocol::Coro::http" : {
          "file" : "lib/LWP/Protocol/Coro/http.pm",
-         "version" : "v1.0.3"
+         "version" : "v1.0.5"
       }
    },
    "release_status" : "stable",
    "resources" : {
       "license" : [
          "http://creativecommons.org/publicdomain/zero/1.0/"
-      ]
+      ],
+      "repository" : {
+         "url" : "http://github.com/ikegami/perl-LWP-Protocol-Coro-http"
+      }
    },
-   "version" : "v1.0.3"
+   "version" : "v1.0.5"
 }

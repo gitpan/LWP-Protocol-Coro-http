@@ -1,6 +1,6 @@
 .gitignore
 Build.PL
-Changes.txt
+Changes
 inc/IO/Catch.pm
 inc/Test/HTTP/LocalServer.pm
 inc/Test/HTTP/log-server
@@ -17,3 +17,5 @@ t/02_large.t
 t/03_error_after_headers.t
 t/04_error_404.t
 t/05_error_500_bogus_host.t
+t/06_referer.t
+t/07_proxy.t

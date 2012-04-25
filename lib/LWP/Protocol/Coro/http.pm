@@ -4,7 +4,7 @@ package LWP::Protocol::Coro::http;
 use strict;
 use warnings;
 
-use version; our $VERSION = qv('v1.0.3');
+use version; our $VERSION = qv('v1.0.5');
 
 use AnyEvent::HTTP qw( http_request );
 use Coro::Channel  qw( );
@@ -27,7 +27,7 @@ sub _set_response_headers {
    $response->message(          delete($headers{ Reason      }) );
 
    # Uppercase headers are pseudo headers added by AnyEvent::HTTP.
-   delete($headers{$_}) for grep /^[A-Z]/, keys(%headers);
+   $headers{"X-AE-$_"} = delete($headers{$_}) for grep /^(?!X-)[A-Z]/, keys(%headers);
 
    if (exists($headers->{'set-cookie'})) {
       # Set-Cookie headers are very non-standard.
@@ -38,19 +38,20 @@ sub _set_response_headers {
       ];
    }
 
-   $response->push_header(%headers);
+   $response->header(%headers);
 }
 
 
 sub request {
    my ($self, $request, $proxy, $arg, $size, $timeout) = @_;
 
-   #TODO Obey $proxy
-
    my $method  = $request->method();
    my $url     = $request->uri();
-   my %headers;  $request->headers()->scan(sub { $headers{$_[0]} = $_[1]; });
+   my %headers;  $request->headers()->scan(sub { $headers{lc $_[0]} = $_[1]; });
    my $body    = $request->content_ref();
+
+   # Fix AnyEvent::HTTP setting Referer to the request URL
+   $headers{referer} = undef unless exists $headers{referer};
 
    # The status code will be replaced.
    my $response = HTTP::Response->new(599, 'Internal Server Error');
@@ -66,6 +67,11 @@ sub request {
    my %opts = ( handle_params => \%handle_opts );
    $opts{body}    = $$body   if defined($body);
    $opts{timeout} = $timeout if defined($timeout);
+
+   if ($proxy) {
+      my $proxy_uri = URI->new($proxy);
+      $opts{proxy} = [$proxy_uri->host, $proxy_uri->port, $proxy_uri->scheme];
+   }
 
    # Let LWP handle redirects and cookies.
    my $guard = http_request(
@@ -121,7 +127,7 @@ LWP::Protocol::Coro::http - Coro-friendly HTTP and HTTPS backend for LWP
 
 =head1 VERSION
 
-Version 1.0.3
+Version 1.0.5
 
 
 =head1 SYNOPSIS
@@ -190,13 +196,6 @@ An alternative to this module. Doesn't help code that uses L<LWP::Simple> or L<L
 =back
 
 
-=head1 KNOWN BUGS
-
-=head2 Ignores proxy settings
-
-I haven't gotten around to implementing proxy support.
-
-
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-LWP-Protocol-Coro-http at rt.cpan.org>,
@@ -233,11 +232,13 @@ L<http://cpanratings.perl.org/d/LWP-Protocol-Coro-http>
 =back
 
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Eric Brine, C<< <ikegami@adaelis.com> >>
 
 Max Maischein, C<< <corion@cpan.org> >>
+
+Graham Barr, C<< <gbarr@pobox.com> >>
 
 
 =head1 COPYRIGHT & LICENSE
