@@ -4,7 +4,7 @@ package LWP::Protocol::Coro::http;
 use strict;
 use warnings;
 
-use version; our $VERSION = qv('v1.0.6');
+use version; our $VERSION = qv('v1.0.7');
 
 use AnyEvent::HTTP qw( http_request );
 use Coro::Channel  qw( );
@@ -14,6 +14,42 @@ use LWP::Protocol  qw( );
 our @ISA = 'LWP::Protocol';
 
 LWP::Protocol::implementor($_, __PACKAGE__) for qw( http https );
+
+
+# This code was based on _extra_sock_opts in LWP::Protocol::https
+sub _get_tls_ctx {
+   my ($self) = @_;
+   my %ssl_opts = %{ $self->{ua}{ssl_opts} || {} };
+   my %tls_ctx;
+
+   # Convert various ssl_opts values to corresponding AnyEvent::TLS tls_ctx values.
+   $tls_ctx{ verify          } = $ssl_opts{SSL_verify_mode};
+   $tls_ctx{ verify_peername } = 'http'                 if defined($ssl_opts{SSL_verifycn_scheme}) && $ssl_opts{SSL_verifycn_scheme} eq 'www';
+   $tls_ctx{ ca_file         } = $ssl_opts{SSL_ca_file} if exists($ssl_opts{SSL_ca_file});
+   $tls_ctx{ ca_path         } = $ssl_opts{SSL_ca_path} if exists($ssl_opts{SSL_ca_path});
+
+   if ($ssl_opts{verify_hostname}) {
+      $tls_ctx{verify} ||= 1;
+      $tls_ctx{verify_peername} = 'http';
+   }
+
+   # We are verifying certificates, but don't have any CA specified, so we try using Mozilla::CA.
+   if ($tls_ctx{verify} && !( exists($tls_ctx{ca_file}) || exists($tls_ctx{ca_path}) )) {
+      if (!eval { require Mozilla::CA }) {
+         if ($@ !~ /^Can\'t locate Mozilla\/CA\.pm/) {
+            die  'Unable to find a list of Certificate Authorities to trust. '
+               . 'To fix this error, either install Mozilla::CA or configure '
+               . 'the ssl_opts as documented in LWP::UserAgent';
+         } else {
+            die $@;
+         }
+      }
+
+      $tls_ctx{ca_file} = Mozilla::CA::SSL_ca_file();
+   }
+
+   return \%tls_ctx;
+}
 
 
 sub _set_response_headers {
@@ -51,7 +87,7 @@ sub request {
 
    my $method  = $request->method();
    my $url     = $request->uri();
-   my %headers;  $request->headers()->scan(sub { $headers{lc $_[0]} = $_[1]; });
+   my %headers;  $request->headers()->scan(sub { $headers{ lc($_[0]) } = $_[1]; });
    my $body    = $request->content_ref();
 
    # Fix AnyEvent::HTTP setting Referer to the request URL
@@ -72,9 +108,13 @@ sub request {
    $opts{body}    = $$body   if defined($body);
    $opts{timeout} = $timeout if defined($timeout);
 
+   if ($url->scheme eq 'https') {
+      $opts{tls_ctx} = $self->_get_tls_ctx();
+   }
+
    if ($proxy) {
       my $proxy_uri = URI->new($proxy);
-      $opts{proxy} = [$proxy_uri->host, $proxy_uri->port, $proxy_uri->scheme];
+      $opts{proxy} = [ $proxy_uri->host, $proxy_uri->port, $proxy_uri->scheme ];
    }
 
    # Let LWP handle redirects and cookies.
@@ -95,8 +135,8 @@ sub request {
          return 1;
       },
       sub { # On completion
-         # On successful completion: @_ = ('',     $headers)
-         # On error:                 @_ = (undef,  $headers)
+         # On successful completion: @_ = ( '',    $headers )
+         # On error:                 @_ = ( undef, $headers )
 
          # It is possible for the request to complete without
          # calling the header callback in the event of error.
@@ -131,7 +171,7 @@ LWP::Protocol::Coro::http - Coro-friendly HTTP and HTTPS backend for LWP
 
 =head1 VERSION
 
-Version 1.0.6
+Version 1.0.7
 
 
 =head1 SYNOPSIS

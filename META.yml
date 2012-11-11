@@ -28,7 +28,7 @@ name: LWP-Protocol-Coro-http
 provides:
   LWP::Protocol::Coro::http:
     file: lib/LWP/Protocol/Coro/http.pm
-    version: v1.0.6
+    version: v1.0.7
 requires:
   AnyEvent::HTTP: 2
   Coro::Channel: 0
@@ -39,4 +39,4 @@ requires:
 resources:
   license: http://creativecommons.org/publicdomain/zero/1.0/
   repository: http://github.com/ikegami/perl-LWP-Protocol-Coro-http
-version: v1.0.6
+version: v1.0.7

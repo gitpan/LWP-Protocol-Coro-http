@@ -50,7 +50,7 @@
    "provides" : {
       "LWP::Protocol::Coro::http" : {
          "file" : "lib/LWP/Protocol/Coro/http.pm",
-         "version" : "v1.0.6"
+         "version" : "v1.0.7"
       }
    },
    "release_status" : "stable",
@@ -62,5 +62,5 @@
          "url" : "http://github.com/ikegami/perl-LWP-Protocol-Coro-http"
       }
    },
-   "version" : "v1.0.6"
+   "version" : "v1.0.7"
 }
