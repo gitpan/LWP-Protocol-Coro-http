@@ -4,12 +4,13 @@ package LWP::Protocol::Coro::http;
 use strict;
 use warnings;
 
-use version; our $VERSION = qv('v1.0.7');
+use version; our $VERSION = qv('v1.8.0');
 
-use AnyEvent::HTTP qw( http_request );
-use Coro::Channel  qw( );
-use HTTP::Response qw( );
-use LWP::Protocol  qw( );
+use AnyEvent::HTTP      qw( http_request );
+use Coro::Channel       qw( );
+use HTTP::Response      qw( );
+use LWP::Protocol       qw( );
+use LWP::Protocol::http qw( );
 
 our @ISA = 'LWP::Protocol';
 
@@ -85,10 +86,25 @@ sub _set_response_headers {
 sub request {
    my ($self, $request, $proxy, $arg, $size, $timeout) = @_;
 
-   my $method  = $request->method();
-   my $url     = $request->uri();
-   my %headers;  $request->headers()->scan(sub { $headers{ lc($_[0]) } = $_[1]; });
-   my $body    = $request->content_ref();
+   my $method = $request->method();
+   my $url    = $request->uri();
+
+   my %headers;
+   {
+      my $headers_obj = $request->headers->clone();
+
+      # Convert user:pass in url into an Authorization header.
+      LWP::Protocol::http->_fixup_header($headers_obj, $url, $proxy);
+
+      $headers_obj->scan(sub {
+         my ($k, $v) = @_;
+         # Imitate LWP::Protocol::http's removal of newlines.
+         $v =~ s/\n/ /g;
+         $headers{ lc($k) } = $v;
+      });
+   }
+
+   my $body = $request->content_ref();
 
    # Fix AnyEvent::HTTP setting Referer to the request URL
    $headers{referer} = undef unless exists $headers{referer};
@@ -144,7 +160,7 @@ sub request {
          # result of an error. This handles these events.
          _set_response_headers($response, $_[1]);
          $headers_avail->send();
-         $data_channel->put(\'');
+         $data_channel->put(\'');    # '
       },
    );
 
@@ -171,7 +187,7 @@ LWP::Protocol::Coro::http - Coro-friendly HTTP and HTTPS backend for LWP
 
 =head1 VERSION
 
-Version 1.0.7
+Version 1.8.0
 
 
 =head1 SYNOPSIS
